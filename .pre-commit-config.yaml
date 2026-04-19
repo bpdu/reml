@@ -18,5 +18,4 @@ repos:
     rev: v1.100.0
     hooks:
     -   id: terraform_fmt
-        args: [--args=-check]
     -   id: terraform_validate

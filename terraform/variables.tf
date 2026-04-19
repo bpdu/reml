@@ -9,3 +9,9 @@ variable "yandex_folder_id" {
   type        = string
   sensitive   = true
 }
+
+variable "service_account_key_file" {
+  description = "Path to service account JSON key file"
+  type        = string
+  sensitive   = true
+}
