@@ -1,0 +1,6 @@
+yandex_cloud_id          = "your-cloud-id"
+yandex_folder_id         = "your-folder-id"
+service_account_key_file = "/home/your-user/.yandex-cloud/reml-sa-key.json"
+
+ssh_public_key_path      = "/home/your-user/.ssh/reml.pub"
+ssh_private_key_path     = "/home/your-user/.ssh/reml"

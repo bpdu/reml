@@ -15,3 +15,19 @@ variable "service_account_key_file" {
   type        = string
   sensitive   = true
 }
+
+variable "ssh_public_key_path" {
+  description = "Path to SSH public key file"
+  type        = string
+}
+
+variable "ssh_private_key_path" {
+  description = "Path to SSH private key file"
+  type        = string
+}
+
+variable "ssh_username" {
+  description = "SSH username for the instance"
+  type        = string
+  default     = "ubuntu"
+}
