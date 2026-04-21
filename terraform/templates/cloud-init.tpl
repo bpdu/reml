@@ -38,6 +38,10 @@ runcmd:
   - mkdir -p /var/log/prefect /var/log/mlflow
   - chown ${ssh_username}:${ssh_username} /var/log/prefect /var/log/mlflow
 
+  # Create MLflow artifacts directory
+  - mkdir -p /home/${ssh_username}/mlflow_artifacts
+  - chown ${ssh_username}:${ssh_username} /home/${ssh_username}/mlflow_artifacts
+
   # Create SSL directories
   - mkdir -p /etc/nginx/ssl /var/www/certbot
 
