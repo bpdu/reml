@@ -106,6 +106,7 @@ resource "yandex_compute_instance" "reml_controller" {
       "sudo systemctl reload nginx",
 
       # Install Prefect and MLflow
+      "mkdir -p /home/${var.ssh_username}/mlflow_artifacts",
       "python3 -m venv /home/${var.ssh_username}/reml-env",
       "/home/${var.ssh_username}/reml-env/bin/pip install --upgrade pip",
       "/home/${var.ssh_username}/reml-env/bin/pip install prefect mlflow boto3",
