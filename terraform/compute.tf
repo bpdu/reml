@@ -151,7 +151,7 @@ resource "yandex_compute_instance" "reml_controller" {
       "sudo cloud-init status --wait",
       "mkdir -p /home/${var.ssh_username}/clickhouse",
       "cp /tmp/clickhouse.compose.yml /home/${var.ssh_username}/clickhouse/docker-compose.yml",
-      "docker compose -f /home/${var.ssh_username}/clickhouse/docker-compose.yml up -d",
+      "docker-compose -f /home/${var.ssh_username}/clickhouse/docker-compose.yml up -d",
       "for i in $(seq 1 30); do docker exec clickhouse-server clickhouse-client --user '${var.clickhouse_user}' --password '${var.clickhouse_password}' --query 'SELECT 1' && exit 0; sleep 2; done; exit 1",
       "docker exec clickhouse-server clickhouse-client --user '${var.clickhouse_user}' --password '${var.clickhouse_password}' --query 'CREATE DATABASE IF NOT EXISTS ${local.clickhouse_db}'"
     ]
