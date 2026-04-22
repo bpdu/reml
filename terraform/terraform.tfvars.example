@@ -20,3 +20,4 @@ ssh_private_key_path     = "/home/your-user/.ssh/reml"
 #   TF_VAR_ssh_allowed_ip        # bastion public IP
 #   TF_VAR_observability_allowed_ip
 #   TF_VAR_ui_allowed_ips        # JSON array, for example ["203.0.113.10","198.51.100.24"]
+#                                # quote the whole JSON array when exporting in CI

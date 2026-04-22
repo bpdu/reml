@@ -13,3 +13,15 @@ output "data_bucket" {
 output "models_bucket" {
   value = yandex_storage_bucket.reml_models.bucket
 }
+
+output "environment" {
+  value = var.environment
+}
+
+output "prefect_url" {
+  value = "https://prefect.reml.bpdu.ru"
+}
+
+output "mlflow_url" {
+  value = "https://mlflow.reml.bpdu.ru"
+}
