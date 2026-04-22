@@ -16,6 +16,10 @@ packages:
   - nginx
   - certbot
   - python3-certbot-nginx
+  - postgresql
+  - postgresql-contrib
+  - prometheus-node-exporter
+  - apache2-utils
   - snapd
 
 runcmd:

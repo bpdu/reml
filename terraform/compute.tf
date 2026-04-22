@@ -99,7 +99,49 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 5: Remote execution (setup)
+  # Provisioner 5: PostgreSQL bootstrap
+  provisioner "remote-exec" {
+    inline = [
+      "set -e",
+      "sudo cloud-init status --wait",
+      "sudo systemctl enable postgresql",
+      "sudo systemctl start postgresql",
+      "sudo bash -lc 'PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n1); CONF=/etc/postgresql/$${PG_VERSION}/main/postgresql.conf; if grep -Eq \"^[#[:space:]]*listen_addresses[[:space:]]*=\" \"$CONF\"; then sed -Ei \"s|^[#[:space:]]*listen_addresses[[:space:]]*=.*|listen_addresses = '127.0.0.1'|\" \"$CONF\"; else echo \"listen_addresses = '127.0.0.1'\" >> \"$CONF\"; fi'",
+      "sudo bash -lc 'PG_VERSION=$(ls /etc/postgresql | sort -V | tail -n1); HBA=/etc/postgresql/$${PG_VERSION}/main/pg_hba.conf; grep -Eq \"^host[[:space:]]+all[[:space:]]+all[[:space:]]+127\\\\.0\\\\.0\\\\.1/32[[:space:]]+scram-sha-256$\" \"$HBA\" || echo \"host all all 127.0.0.1/32 scram-sha-256\" >> \"$HBA\"'",
+      "sudo systemctl restart postgresql",
+      "sudo -u postgres psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname = '${replace(var.postgres_user, "'", "''")}'\" | grep -q 1 || sudo -u postgres psql -c \"CREATE ROLE \\\"${var.postgres_user}\\\" LOGIN\"",
+      "sudo -u postgres psql -c \"ALTER ROLE \\\"${var.postgres_user}\\\" WITH PASSWORD '${replace(var.postgres_password, "'", "''")}'\"",
+      "sudo -u postgres psql -tAc \"SELECT 1 FROM pg_database WHERE datname = '${local.postgres_db}'\" | grep -q 1 || sudo -u postgres psql -c \"CREATE DATABASE \\\"${local.postgres_db}\\\" OWNER \\\"${var.postgres_user}\\\"\"",
+      "sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE \\\"${local.postgres_db}\\\" TO \\\"${var.postgres_user}\\\"\""
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_username
+      private_key = file(var.ssh_private_key_path)
+      host        = self.network_interface[0].nat_ip_address
+    }
+  }
+
+  # Provisioner 6: Node Exporter bootstrap
+  provisioner "remote-exec" {
+    inline = [
+      "set -e",
+      "sudo cloud-init status --wait",
+      "sudo bash -lc 'printf \"ARGS=\\\"--web.listen-address=:${var.node_exporter_port}\\\"\\n\" > /etc/default/prometheus-node-exporter'",
+      "sudo systemctl enable prometheus-node-exporter",
+      "sudo systemctl restart prometheus-node-exporter"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_username
+      private_key = file(var.ssh_private_key_path)
+      host        = self.network_interface[0].nat_ip_address
+    }
+  }
+
+  # Provisioner 7: Remote execution (app setup)
   provisioner "remote-exec" {
     inline = [
       "set -e",
