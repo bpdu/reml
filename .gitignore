@@ -215,4 +215,6 @@ __marimo__/
 .terraform/
 terraform.tfvars
 *.tfvars
+!.tfvars.example
 *.tfplan
+*.pgpass

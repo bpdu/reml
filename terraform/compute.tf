@@ -2,6 +2,18 @@ data "yandex_compute_image" "ubuntu" {
   family = "ubuntu-2404-lts"
 }
 
+locals {
+  postgres_db   = "reml_${var.environment}"
+  clickhouse_db = "reml_${var.environment}"
+}
+
+check "workspace_matches_environment" {
+  assert {
+    condition     = terraform.workspace == var.environment
+    error_message = "terraform workspace must match var.environment."
+  }
+}
+
 resource "yandex_compute_instance" "reml_controller" {
   name        = "reml-controller"
   platform_id = "standard-v3"

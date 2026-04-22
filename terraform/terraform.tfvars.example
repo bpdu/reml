@@ -4,3 +4,19 @@ service_account_key_file = "/home/your-user/.yandex-cloud/reml-sa-key.json"
 
 ssh_public_key_path      = "/home/your-user/.ssh/reml.pub"
 ssh_private_key_path     = "/home/your-user/.ssh/reml"
+
+# Environment-specific secrets should be provided via GitHub Environment Secrets
+# and exported as TF_VAR_* values in CI:
+#   TF_VAR_postgres_user
+#   TF_VAR_postgres_password
+#   TF_VAR_clickhouse_user
+#   TF_VAR_clickhouse_password
+#   TF_VAR_basic_auth_username
+#   TF_VAR_basic_auth_password
+#
+# Non-secret environment-specific values should be provided via GitHub
+# Environment Variables and exported as TF_VAR_* values in CI:
+#   TF_VAR_environment           # must match terraform workspace: test or prod
+#   TF_VAR_ssh_allowed_ip        # bastion public IP
+#   TF_VAR_observability_allowed_ip
+#   TF_VAR_ui_allowed_ips        # JSON array, for example ["203.0.113.10","198.51.100.24"]

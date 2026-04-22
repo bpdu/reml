@@ -31,3 +31,70 @@ variable "ssh_username" {
   type        = string
   default     = "ubuntu"
 }
+
+variable "environment" {
+  description = "Deployment environment name"
+  type        = string
+
+  validation {
+    condition     = contains(["test", "prod"], var.environment)
+    error_message = "environment must be one of: test, prod."
+  }
+}
+
+variable "postgres_user" {
+  description = "PostgreSQL application username"
+  type        = string
+  sensitive   = true
+}
+
+variable "postgres_password" {
+  description = "PostgreSQL application password"
+  type        = string
+  sensitive   = true
+}
+
+variable "clickhouse_user" {
+  description = "ClickHouse application username"
+  type        = string
+  sensitive   = true
+}
+
+variable "clickhouse_password" {
+  description = "ClickHouse application password"
+  type        = string
+  sensitive   = true
+}
+
+variable "basic_auth_username" {
+  description = "Username for nginx basic auth"
+  type        = string
+  sensitive   = true
+}
+
+variable "basic_auth_password" {
+  description = "Password for nginx basic auth"
+  type        = string
+  sensitive   = true
+}
+
+variable "ssh_allowed_ip" {
+  description = "Public IP address allowed to access SSH"
+  type        = string
+}
+
+variable "observability_allowed_ip" {
+  description = "Public IP address allowed to scrape Node Exporter"
+  type        = string
+}
+
+variable "ui_allowed_ips" {
+  description = "Public IP addresses allowed to access Prefect and MLflow via nginx"
+  type        = list(string)
+}
+
+variable "node_exporter_port" {
+  description = "Prometheus Node Exporter port"
+  type        = number
+  default     = 9100
+}
