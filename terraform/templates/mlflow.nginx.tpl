@@ -3,6 +3,12 @@ server {
     server_name mlflow.reml.bpdu.ru;
 
     location / {
+%{ for ip in ui_allowed_ips ~}
+        allow ${ip};
+%{ endfor ~}
+        deny all;
+        auth_basic "Restricted";
+        auth_basic_user_file /etc/nginx/.htpasswd_reml;
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

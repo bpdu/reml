@@ -49,7 +49,9 @@ resource "yandex_compute_instance" "reml_controller" {
 
   # Provisioner 1: Prefect nginx config
   provisioner "file" {
-    source      = "${path.module}/templates/prefect.nginx.tpl"
+    content = templatefile("${path.module}/templates/prefect.nginx.tpl", {
+      ui_allowed_ips = var.ui_allowed_ips
+    })
     destination = "/tmp/prefect.nginx.conf"
 
     connection {
@@ -62,7 +64,9 @@ resource "yandex_compute_instance" "reml_controller" {
 
   # Provisioner 2: MLflow nginx config
   provisioner "file" {
-    source      = "${path.module}/templates/mlflow.nginx.tpl"
+    content = templatefile("${path.module}/templates/mlflow.nginx.tpl", {
+      ui_allowed_ips = var.ui_allowed_ips
+    })
     destination = "/tmp/mlflow.nginx.conf"
 
     connection {
@@ -178,7 +182,25 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 9: Remote execution (app setup)
+  # Provisioner 9: nginx basic auth bootstrap
+  provisioner "remote-exec" {
+    inline = [
+      "set -e",
+      "sudo cloud-init status --wait",
+      "sudo htpasswd -cb /etc/nginx/.htpasswd_reml '${var.basic_auth_username}' '${var.basic_auth_password}'",
+      "sudo chmod 640 /etc/nginx/.htpasswd_reml",
+      "sudo chown root:www-data /etc/nginx/.htpasswd_reml"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_username
+      private_key = file(var.ssh_private_key_path)
+      host        = self.network_interface[0].nat_ip_address
+    }
+  }
+
+  # Provisioner 10: Remote execution (app setup)
   provisioner "remote-exec" {
     inline = [
       "set -e",
