@@ -99,7 +99,24 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 5: PostgreSQL bootstrap
+  # Provisioner 5: ClickHouse compose file
+  provisioner "file" {
+    content = templatefile("${path.module}/templates/clickhouse.compose.tpl", {
+      clickhouse_db       = local.clickhouse_db
+      clickhouse_user     = var.clickhouse_user
+      clickhouse_password = var.clickhouse_password
+    })
+    destination = "/tmp/clickhouse.compose.yml"
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_username
+      private_key = file(var.ssh_private_key_path)
+      host        = self.network_interface[0].nat_ip_address
+    }
+  }
+
+  # Provisioner 6: PostgreSQL bootstrap
   provisioner "remote-exec" {
     inline = [
       "set -e",
@@ -123,7 +140,27 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 6: Node Exporter bootstrap
+  # Provisioner 7: ClickHouse bootstrap
+  provisioner "remote-exec" {
+    inline = [
+      "set -e",
+      "sudo cloud-init status --wait",
+      "mkdir -p /home/${var.ssh_username}/clickhouse",
+      "cp /tmp/clickhouse.compose.yml /home/${var.ssh_username}/clickhouse/docker-compose.yml",
+      "docker compose -f /home/${var.ssh_username}/clickhouse/docker-compose.yml up -d",
+      "for i in $(seq 1 30); do docker exec clickhouse-server clickhouse-client --user '${var.clickhouse_user}' --password '${var.clickhouse_password}' --query 'SELECT 1' && exit 0; sleep 2; done; exit 1",
+      "docker exec clickhouse-server clickhouse-client --user '${var.clickhouse_user}' --password '${var.clickhouse_password}' --query 'CREATE DATABASE IF NOT EXISTS ${local.clickhouse_db}'"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_username
+      private_key = file(var.ssh_private_key_path)
+      host        = self.network_interface[0].nat_ip_address
+    }
+  }
+
+  # Provisioner 8: Node Exporter bootstrap
   provisioner "remote-exec" {
     inline = [
       "set -e",
@@ -141,7 +178,7 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 7: Remote execution (app setup)
+  # Provisioner 9: Remote execution (app setup)
   provisioner "remote-exec" {
     inline = [
       "set -e",
