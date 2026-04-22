@@ -5,7 +5,7 @@ resource "yandex_vpc_security_group" "reml_controller" {
   ingress {
     description    = "SSH from bastion"
     protocol       = "TCP"
-    v4_cidr_blocks = ["${var.ssh_allowed_ip}/32"]
+    v4_cidr_blocks = [for ip in var.ssh_allowed_ips : "${ip}/32"]
     port           = 22
   }
 

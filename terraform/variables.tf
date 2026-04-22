@@ -78,9 +78,9 @@ variable "basic_auth_password" {
   sensitive   = true
 }
 
-variable "ssh_allowed_ip" {
-  description = "Public IP address allowed to access SSH"
-  type        = string
+variable "ssh_allowed_ips" {
+  description = "Public IP addresses allowed to access SSH"
+  type        = list(string)
 }
 
 variable "observability_allowed_ip" {
