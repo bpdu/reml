@@ -19,27 +19,24 @@ resource "yandex_compute_instance" "reml_controller" {
   platform_id = "standard-v3"
   zone        = "ru-central1-a"
 
-  scheduling_policy {
-    preemptible = true
-  }
-
   resources {
     cores  = 2
-    memory = 4
+    memory = 8
   }
 
   boot_disk {
     initialize_params {
       image_id = data.yandex_compute_image.ubuntu.image_id
-      size     = 30
-      type     = "network-hdd"
+      size     = 50
+      type     = "network-ssd"
     }
   }
 
   network_interface {
-    subnet_id      = yandex_vpc_subnet.reml_a.id
-    nat            = true
-    nat_ip_address = yandex_vpc_address.reml_static.external_ipv4_address[0].address
+    subnet_id          = yandex_vpc_subnet.reml_a.id
+    nat                = true
+    nat_ip_address     = yandex_vpc_address.reml_static.external_ipv4_address[0].address
+    security_group_ids = [yandex_vpc_security_group.reml_controller.id]
   }
 
   metadata = {
