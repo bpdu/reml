@@ -98,3 +98,8 @@ variable "node_exporter_port" {
   type        = number
   default     = 9100
 }
+
+variable "loki_push_url" {
+  description = "Loki push API URL for Promtail"
+  type        = string
+}

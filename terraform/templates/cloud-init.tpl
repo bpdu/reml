@@ -49,6 +49,9 @@ runcmd:
   # Create SSL directories
   - mkdir -p /etc/nginx/ssl /var/www/certbot
 
+  # Create Promtail state directory
+  - mkdir -p /var/lib/promtail
+
   # Start nginx
   - systemctl enable nginx
   - systemctl start nginx

@@ -120,7 +120,36 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 6: PostgreSQL bootstrap
+  # Provisioner 6: Promtail config
+  provisioner "file" {
+    content = templatefile("${path.module}/templates/promtail-config.yml.tpl", {
+      loki_push_url = var.loki_push_url
+      environment   = var.environment
+    })
+    destination = "/tmp/promtail-config.yml"
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_username
+      private_key = file(var.ssh_private_key_path)
+      host        = self.network_interface[0].nat_ip_address
+    }
+  }
+
+  # Provisioner 7: Promtail systemd service
+  provisioner "file" {
+    source      = "${path.module}/templates/promtail.service.tpl"
+    destination = "/tmp/promtail.service"
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_username
+      private_key = file(var.ssh_private_key_path)
+      host        = self.network_interface[0].nat_ip_address
+    }
+  }
+
+  # Provisioner 8: PostgreSQL bootstrap
   provisioner "remote-exec" {
     inline = [
       "set -e",
@@ -144,7 +173,7 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 7: ClickHouse bootstrap
+  # Provisioner 9: ClickHouse bootstrap
   provisioner "remote-exec" {
     inline = [
       "set -e",
@@ -164,7 +193,7 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 8: Node Exporter bootstrap
+  # Provisioner 10: Node Exporter bootstrap
   provisioner "remote-exec" {
     inline = [
       "set -e",
@@ -182,7 +211,31 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 9: nginx basic auth bootstrap
+  # Provisioner 11: Promtail bootstrap
+  provisioner "remote-exec" {
+    inline = [
+      "set -e",
+      "sudo cloud-init status --wait",
+      "curl -L -o /tmp/promtail.zip https://github.com/grafana/loki/releases/download/v3.0.0/promtail-linux-amd64.zip",
+      "unzip -o /tmp/promtail.zip -d /tmp/promtail",
+      "sudo install -m 0755 /tmp/promtail/promtail-linux-amd64 /usr/local/bin/promtail",
+      "sudo mkdir -p /etc/promtail /var/lib/promtail",
+      "sudo cp /tmp/promtail-config.yml /etc/promtail/config.yml",
+      "sudo cp /tmp/promtail.service /etc/systemd/system/promtail.service",
+      "sudo systemctl daemon-reload",
+      "sudo systemctl enable promtail",
+      "sudo systemctl restart promtail"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_username
+      private_key = file(var.ssh_private_key_path)
+      host        = self.network_interface[0].nat_ip_address
+    }
+  }
+
+  # Provisioner 12: nginx basic auth bootstrap
   provisioner "remote-exec" {
     inline = [
       "set -e",
@@ -200,7 +253,7 @@ resource "yandex_compute_instance" "reml_controller" {
     }
   }
 
-  # Provisioner 10: Remote execution (app setup)
+  # Provisioner 13: Remote execution (app setup)
   provisioner "remote-exec" {
     inline = [
       "set -e",
@@ -238,7 +291,8 @@ resource "yandex_compute_instance" "reml_controller" {
       "/home/${var.ssh_username}/reml-env/bin/prefect config set PREFECT_API_URL=https://prefect.reml.bpdu.ru/api",
 
       # Cleanup
-      "rm /tmp/*.nginx.conf /tmp/*.service",
+      "rm -f /tmp/*.nginx.conf /tmp/*.service /tmp/promtail-config.yml /tmp/promtail.zip /tmp/clickhouse.compose.yml",
+      "rm -rf /tmp/promtail",
 
       # Success flag
       "echo 'REML controller fully provisioned with SSL at $(date)' > /home/${var.ssh_username}/provision-status"
