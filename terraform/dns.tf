@@ -20,3 +20,11 @@ resource "yandex_dns_recordset" "mlflow" {
   ttl     = 300
   data    = [yandex_vpc_address.reml_static.external_ipv4_address[0].address]
 }
+
+resource "yandex_dns_recordset" "reml_controller" {
+  zone_id = yandex_dns_zone.reml.id
+  name    = "controller.reml.bpdu.ru."
+  type    = "A"
+  ttl     = 300
+  data    = [yandex_vpc_address.reml_static.external_ipv4_address[0].address]
+}
