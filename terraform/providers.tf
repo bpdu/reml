@@ -8,8 +8,10 @@ terraform {
     }
   }
 
-  backend "local" {
-    path = "terraform.tfstate"
+  backend "s3" {
+    bucket = "placeholder"
+    key    = "placeholder"
+    region = "ru-central1"
   }
 }
 
