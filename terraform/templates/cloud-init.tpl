@@ -20,6 +20,7 @@ packages:
   - postgresql-contrib
   - prometheus-node-exporter
   - apache2-utils
+  - unzip
   - snapd
 
 runcmd:
