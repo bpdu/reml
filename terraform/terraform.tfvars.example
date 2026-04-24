@@ -19,6 +19,8 @@ ssh_private_key_path     = "/home/your-user/.ssh/reml"
 #   TF_VAR_environment           # must match terraform workspace: test or prod
 #   TF_VAR_ssh_allowed_ips       # JSON array, for example ["203.0.113.10","198.51.100.24"]
 #   TF_VAR_observability_allowed_ip
-#   TF_VAR_loki_push_url         # for example https://oko.bpdu.ru/loki/api/v1/push
+#   TF_VAR_loki_push_url         # for example https://oko.bpdu.ru/loki/api/v1/push (without credentials)
+#   TF_VAR_loki_basic_auth_username
+#   TF_VAR_loki_basic_auth_password
 #   TF_VAR_ui_allowed_ips        # JSON array, for example ["203.0.113.10","198.51.100.24"]
 #                                # quote the whole JSON array when exporting in CI

@@ -123,8 +123,10 @@ resource "yandex_compute_instance" "reml_controller" {
   # Provisioner 6: Promtail config
   provisioner "file" {
     content = templatefile("${path.module}/templates/promtail-config.yml.tpl", {
-      loki_push_url = var.loki_push_url
-      environment   = var.environment
+      loki_push_url            = var.loki_push_url
+      loki_basic_auth_username = var.loki_basic_auth_username
+      loki_basic_auth_password = var.loki_basic_auth_password
+      environment              = var.environment
     })
     destination = "/tmp/promtail-config.yml"
 

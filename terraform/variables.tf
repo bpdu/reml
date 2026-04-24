@@ -103,3 +103,14 @@ variable "loki_push_url" {
   description = "Loki push API URL for Promtail"
   type        = string
 }
+
+variable "loki_basic_auth_username" {
+  description = "Username for Promtail to authenticate to Loki ingress"
+  type        = string
+}
+
+variable "loki_basic_auth_password" {
+  description = "Password for Promtail to authenticate to Loki ingress"
+  type        = string
+  sensitive   = true
+}

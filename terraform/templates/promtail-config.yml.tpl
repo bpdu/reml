@@ -7,6 +7,9 @@ positions:
 
 clients:
   - url: ${loki_push_url}
+    basic_auth:
+      username: ${loki_basic_auth_username}
+      password: ${loki_basic_auth_password}
 
 scrape_configs:
   - job_name: nginx
