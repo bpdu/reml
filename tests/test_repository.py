@@ -10,7 +10,7 @@ from reml.ingestion.repository import IngestionRepository
 def test_request_fingerprint_is_deterministic() -> None:
     repo = IngestionRepository(dsn="postgresql://example")
     fp1 = repo.build_request_fingerprint(
-        endpoint="https://rest-app.net/api-cian/ads",
+        endpoint="https://example.invalid/api/ads",
         request_params={
             "date1": "2026-04-27 00:00:00",
             "date2": "2026-04-27 23:59:59",
@@ -20,7 +20,7 @@ def test_request_fingerprint_is_deterministic() -> None:
         },
     )
     fp2 = repo.build_request_fingerprint(
-        endpoint="https://rest-app.net/api-cian/ads",
+        endpoint="https://example.invalid/api/ads",
         request_params={
             "offset": 0,
             "limit": 1000,

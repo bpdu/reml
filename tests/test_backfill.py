@@ -10,7 +10,7 @@ class FakeClient:
     def __init__(self, page_sizes: list[int]):
         self.page_sizes = page_sizes
         self.calls = 0
-        self.endpoint = "https://rest-app.net/api-cian/ads"
+        self.endpoint = "https://example.invalid/api/ads"
 
     def fetch_ads(self, **kwargs):  # type: ignore[override]
         size = self.page_sizes[self.calls] if self.calls < len(self.page_sizes) else 0

@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 import logging
 from typing import Protocol
 
-from reml.ingestion.cian_client import CianClient
+from reml.ingestion.ads_api_client import AdsApiClient
 from reml.ingestion.parser import parse_response_items, resolve_deal_id
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class RepositoryProtocol(Protocol):
 
 @dataclass(slots=True)
 class HistoricalBackfillService:
-    client: CianClient
+    client: AdsApiClient
     repository: RepositoryProtocol
     category_id: int = 1
     region_id: int = 1

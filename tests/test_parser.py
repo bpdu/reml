@@ -76,7 +76,7 @@ def test_field_mapping() -> None:
         "class_type": "economy",
         "condition_type": "good",
         "published_user_id": 100,
-        "cian_user_id": 200,
+        "source_user_id": 200,
         "images": ["a.jpg", "b.jpg"],
         "description": "nice flat",
         "price": "15500000",

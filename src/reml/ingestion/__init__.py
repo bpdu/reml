@@ -1,1 +1,1 @@
-"""Ingestion components for CIAN-like source."""
+"""Ingestion components for listing source."""

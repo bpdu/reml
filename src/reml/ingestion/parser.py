@@ -67,6 +67,26 @@ def normalize_text_field(value: Any) -> str | None:
     return json.dumps(value, ensure_ascii=False)
 
 
+def extract_external_user_id(item: dict[str, Any]) -> int | None:
+    direct_candidates = (
+        item.get("external_user_id"),
+        item.get("source_user_id"),
+    )
+    for candidate in direct_candidates:
+        value = parse_nullable_int(candidate)
+        if value is not None:
+            return value
+
+    for key, value in item.items():
+        if key == "published_user_id":
+            continue
+        if key.endswith("_user_id"):
+            parsed = parse_nullable_int(value)
+            if parsed is not None:
+                return parsed
+    return None
+
+
 @dataclass(slots=True)
 class ParsedListing:
     external_id: int
@@ -121,7 +141,7 @@ def map_listing_item(item: dict[str, Any], observed_at: datetime) -> ParsedListi
         "class_type": normalize_text_field(item.get("class_type")),
         "condition_type": normalize_text_field(item.get("condition_type")),
         "published_user_id": parse_nullable_int(item.get("published_user_id")),
-        "external_user_id": parse_nullable_int(item.get("cian_user_id")),
+        "external_user_id": extract_external_user_id(item),
         "images": images_text,
         "images_hash": sha256_text(images_text),
         "description": description,

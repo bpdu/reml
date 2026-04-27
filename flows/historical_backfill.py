@@ -5,7 +5,7 @@ import logging
 import os
 
 from reml.ingestion.backfill import HistoricalBackfillService
-from reml.ingestion.cian_client import CianClient
+from reml.ingestion.ads_api_client import AdsApiClient
 from reml.ingestion.repository import IngestionRepository
 
 try:
@@ -26,7 +26,7 @@ def _required_env(name: str) -> str:
     return value
 
 
-@flow(name="historical-cian-backfill")
+@flow(name="historical-listing-backfill")
 def historical_backfill_flow(
     *,
     schema: str,
@@ -39,12 +39,12 @@ def historical_backfill_flow(
 ) -> int:
     logging.basicConfig(level=logging.INFO)
     db_dsn = _required_env("REML_DB_DSN")
-    client = CianClient(
-        login=_required_env("CIAN_LOGIN"),
-        token=_required_env("CIAN_TOKEN"),
-        endpoint=os.getenv("CIAN_ENDPOINT", "https://rest-app.net/api-cian/ads"),
-        timeout_seconds=int(os.getenv("CIAN_TIMEOUT_SECONDS", "30")),
-        max_retries=int(os.getenv("CIAN_MAX_RETRIES", "3")),
+    client = AdsApiClient(
+        login=_required_env("SOURCE_API_LOGIN"),
+        token=_required_env("SOURCE_API_TOKEN"),
+        endpoint=os.getenv("SOURCE_API_ENDPOINT", "https://rest-app.net/api/ads"),
+        timeout_seconds=int(os.getenv("SOURCE_API_TIMEOUT_SECONDS", "30")),
+        max_retries=int(os.getenv("SOURCE_API_MAX_RETRIES", "3")),
     )
     repo = IngestionRepository(dsn=db_dsn)
     service = HistoricalBackfillService(
@@ -69,7 +69,7 @@ def historical_backfill_flow(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run historical CIAN backfill flow")
+    parser = argparse.ArgumentParser(description="Run historical listing backfill flow")
     parser.add_argument("--schema", required=True, choices=["sale", "rent"])
     parser.add_argument("--start-date", required=False, help="YYYY-MM-DD")
     parser.add_argument("--end-date", required=False, help="YYYY-MM-DD")

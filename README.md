@@ -19,7 +19,7 @@ MLOps pipeline for real estate investment ROI prediction
 - Inference: FastAPI + vLLM (GPU)
 - Monitoring: Prometheus + Grafana
 
-## Ingestion (CIAN-like historical backfill)
+## Ingestion (historical backfill)
 
 ### 1. Initialize DB objects (schemas, tables, indexes, checkpoints)
 
@@ -28,16 +28,18 @@ export REML_DB_DSN='postgresql://user:pass@host:5432/reml_test'
 python3 scripts/init_db.py
 ```
 
+`init_db.py` applies all `migrations/*.sql` in lexical order.
+
 ### 2. Required environment variables
 
 ```bash
 export REML_DB_DSN='postgresql://user:pass@host:5432/reml_test'
-export CIAN_LOGIN='your_login'
-export CIAN_TOKEN='your_token'
+export SOURCE_API_LOGIN='your_login'
+export SOURCE_API_TOKEN='your_token'
 # Optional:
-export CIAN_ENDPOINT='https://rest-app.net/api-cian/ads'
-export CIAN_TIMEOUT_SECONDS='30'
-export CIAN_MAX_RETRIES='3'
+export SOURCE_API_ENDPOINT='https://rest-app.net/api/ads'
+export SOURCE_API_TIMEOUT_SECONDS='30'
+export SOURCE_API_MAX_RETRIES='3'
 ```
 
 ### 3. Run historical backfill flow
@@ -61,6 +63,13 @@ For rent use `--schema rent`. `deal_id` is derived automatically from schema:
 
 ```bash
 python3 -m pytest
+```
+
+Integration idempotency test for repository requires dedicated test DB:
+
+```bash
+export REML_TEST_DB_DSN='postgresql://user:pass@host:5432/reml_test'
+python3 -m pytest tests/test_repository_integration.py
 ```
 
 ### Security note

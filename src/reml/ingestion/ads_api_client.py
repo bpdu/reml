@@ -10,15 +10,15 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-class CianApiError(RuntimeError):
+class SourceApiError(RuntimeError):
     """Raised when API returns invalid response or non-ok status."""
 
 
 @dataclass(slots=True)
-class CianClient:
+class AdsApiClient:
     login: str
     token: str
-    endpoint: str = "https://rest-app.net/api-cian/ads"
+    endpoint: str = "https://rest-app.net/api/ads"
     timeout_seconds: int = 30
     max_retries: int = 3
     retry_backoff_seconds: float = 1.0
@@ -82,9 +82,9 @@ class CianClient:
                 response.raise_for_status()
                 payload = response.json()
                 if payload.get("status") != "ok":
-                    raise CianApiError(f"API status is not ok: {payload}")
+                    raise SourceApiError(f"API status is not ok: {payload}")
                 logger.info(
-                    "cian_fetch_ok",
+                    "api_fetch_ok",
                     extra={
                         "offset": offset,
                         "limit": limit,
@@ -92,13 +92,13 @@ class CianClient:
                     },
                 )
                 return payload
-            except (requests.RequestException, ValueError, CianApiError) as exc:
+            except (requests.RequestException, ValueError, SourceApiError) as exc:
                 if attempt >= self.max_retries:
-                    logger.exception("cian_fetch_failed", extra={"attempt": attempt})
+                    logger.exception("api_fetch_failed", extra={"attempt": attempt})
                     raise
                 sleep_for = self.retry_backoff_seconds * attempt
                 logger.warning(
-                    "cian_fetch_retry",
+                    "api_fetch_retry",
                     extra={
                         "attempt": attempt,
                         "sleep_for": sleep_for,
