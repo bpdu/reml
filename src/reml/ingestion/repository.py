@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
+import hashlib
+import json
 from typing import Any
 
 from psycopg import sql
@@ -62,26 +64,59 @@ def _validate_schema(schema_name: str) -> None:
 class IngestionRepository:
     dsn: str
 
+    @staticmethod
+    def build_request_fingerprint(
+        *, endpoint: str, request_params: dict[str, Any]
+    ) -> str:
+        canonical = json.dumps(
+            {"endpoint": endpoint, "request_params": request_params},
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
     def ingest_response(
         self,
         *,
         schema_name: str,
         endpoint: str,
         request_params: dict[str, Any],
+        deal_id: int,
+        category_id: int,
+        region_id: int,
+        window_start: date,
+        window_end: date,
+        page_limit: int,
+        page_offset: int,
         response_payload: dict[str, Any],
         observed_at: datetime,
         parsed_items: list[ParsedListing],
     ) -> int:
         _validate_schema(schema_name)
+        request_fingerprint = self.build_request_fingerprint(
+            endpoint=endpoint,
+            request_params=request_params,
+        )
         with psycopg.connect(self.dsn) as conn:
             with conn.transaction():
-                raw_response_id = self._insert_raw_response(
+                raw_response_id, was_inserted = self._insert_raw_response(
                     conn=conn,
                     schema_name=schema_name,
                     endpoint=endpoint,
                     request_params=request_params,
+                    deal_id=deal_id,
+                    category_id=category_id,
+                    region_id=region_id,
+                    window_start=window_start,
+                    window_end=window_end,
+                    page_limit=page_limit,
+                    page_offset=page_offset,
+                    request_fingerprint=request_fingerprint,
                     response_payload=response_payload,
                 )
+                if not was_inserted:
+                    return 0
                 for item in parsed_items:
                     listing_id = self._upsert_listing_object(
                         conn=conn,
@@ -101,6 +136,9 @@ class IngestionRepository:
         self,
         *,
         schema_name: str,
+        deal_id: int,
+        category_id: int,
+        region_id: int,
         window_start: date,
         window_end: date,
         status: str,
@@ -110,10 +148,10 @@ class IngestionRepository:
         _validate_schema(schema_name)
         checkpoint_sql = """
             INSERT INTO public.ingestion_backfill_checkpoints
-                (schema_name, window_start, window_end, status, records_loaded, offset)
+                (schema_name, deal_id, category_id, region_id, window_start, window_end, status, records_loaded, offset)
             VALUES
-                (%(schema_name)s, %(window_start)s, %(window_end)s, %(status)s, %(records_loaded)s, %(offset)s)
-            ON CONFLICT (schema_name, window_start, window_end)
+                (%(schema_name)s, %(deal_id)s, %(category_id)s, %(region_id)s, %(window_start)s, %(window_end)s, %(status)s, %(records_loaded)s, %(offset)s)
+            ON CONFLICT (schema_name, deal_id, category_id, region_id, window_start, window_end)
             DO UPDATE SET
                 status = EXCLUDED.status,
                 records_loaded = EXCLUDED.records_loaded,
@@ -126,6 +164,9 @@ class IngestionRepository:
                     checkpoint_sql,
                     {
                         "schema_name": schema_name,
+                        "deal_id": deal_id,
+                        "category_id": category_id,
+                        "region_id": region_id,
                         "window_start": window_start,
                         "window_end": window_end,
                         "status": status,
@@ -138,6 +179,9 @@ class IngestionRepository:
         self,
         *,
         schema_name: str,
+        deal_id: int,
+        category_id: int,
+        region_id: int,
         window_start: date,
         window_end: date,
     ) -> dict[str, Any] | None:
@@ -145,14 +189,20 @@ class IngestionRepository:
         with psycopg.connect(self.dsn) as conn:
             row = conn.execute(
                 """
-                SELECT schema_name, window_start, window_end, status, records_loaded, offset, updated_at
+                SELECT schema_name, deal_id, category_id, region_id, window_start, window_end, status, records_loaded, offset, updated_at
                 FROM public.ingestion_backfill_checkpoints
                 WHERE schema_name = %(schema_name)s
+                  AND deal_id = %(deal_id)s
+                  AND category_id = %(category_id)s
+                  AND region_id = %(region_id)s
                   AND window_start = %(window_start)s
                   AND window_end = %(window_end)s
                 """,
                 {
                     "schema_name": schema_name,
+                    "deal_id": deal_id,
+                    "category_id": category_id,
+                    "region_id": region_id,
                     "window_start": window_start,
                     "window_end": window_end,
                 },
@@ -161,12 +211,15 @@ class IngestionRepository:
                 return None
             return {
                 "schema_name": row[0],
-                "window_start": row[1],
-                "window_end": row[2],
-                "status": row[3],
-                "records_loaded": row[4],
-                "offset": row[5],
-                "updated_at": row[6],
+                "deal_id": row[1],
+                "category_id": row[2],
+                "region_id": row[3],
+                "window_start": row[4],
+                "window_end": row[5],
+                "status": row[6],
+                "records_loaded": row[7],
+                "offset": row[8],
+                "updated_at": row[9],
             }
 
     def _insert_raw_response(
@@ -176,15 +229,59 @@ class IngestionRepository:
         schema_name: str,
         endpoint: str,
         request_params: dict[str, Any],
+        deal_id: int,
+        category_id: int,
+        region_id: int,
+        window_start: date,
+        window_end: date,
+        page_limit: int,
+        page_offset: int,
+        request_fingerprint: str,
         response_payload: dict[str, Any],
-    ) -> int:
+    ) -> tuple[int, bool]:
         query = sql.SQL(
             """
-            INSERT INTO {}.listing_api_responses (endpoint, request_params, response_payload, records_count)
-            VALUES (%(endpoint)s, %(request_params)s, %(response_payload)s, %(records_count)s)
-            RETURNING id
+            WITH inserted AS (
+                INSERT INTO {}.listing_api_responses (
+                    endpoint,
+                    request_params,
+                    response_payload,
+                    records_count,
+                    request_fingerprint,
+                    deal_id,
+                    category_id,
+                    region_id,
+                    window_start,
+                    window_end,
+                    page_limit,
+                    page_offset
+                )
+                VALUES (
+                    %(endpoint)s,
+                    %(request_params)s,
+                    %(response_payload)s,
+                    %(records_count)s,
+                    %(request_fingerprint)s,
+                    %(deal_id)s,
+                    %(category_id)s,
+                    %(region_id)s,
+                    %(window_start)s,
+                    %(window_end)s,
+                    %(page_limit)s,
+                    %(page_offset)s
+                )
+                ON CONFLICT (request_fingerprint) DO NOTHING
+                RETURNING id
+            )
+            SELECT id, true AS inserted FROM inserted
+            UNION ALL
+            SELECT id, false AS inserted
+            FROM {}.listing_api_responses
+            WHERE request_fingerprint = %(request_fingerprint)s
+              AND NOT EXISTS (SELECT 1 FROM inserted)
+            LIMIT 1
             """
-        ).format(sql.Identifier(schema_name))
+        ).format(sql.Identifier(schema_name), sql.Identifier(schema_name))
 
         records_count = (
             len(response_payload.get("data", []))
@@ -198,11 +295,19 @@ class IngestionRepository:
                 "request_params": request_params,
                 "response_payload": response_payload,
                 "records_count": records_count,
+                "request_fingerprint": request_fingerprint,
+                "deal_id": deal_id,
+                "category_id": category_id,
+                "region_id": region_id,
+                "window_start": window_start,
+                "window_end": window_end,
+                "page_limit": page_limit,
+                "page_offset": page_offset,
             },
         ).fetchone()
         if row is None:
             raise RuntimeError("Failed to insert raw response")
-        return int(row[0])
+        return int(row[0]), bool(row[1])
 
     def _upsert_listing_object(
         self,

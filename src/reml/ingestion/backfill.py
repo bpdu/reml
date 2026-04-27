@@ -18,6 +18,13 @@ class RepositoryProtocol(Protocol):
         schema_name: str,
         endpoint: str,
         request_params: dict,
+        deal_id: int,
+        category_id: int,
+        region_id: int,
+        window_start: date,
+        window_end: date,
+        page_limit: int,
+        page_offset: int,
         response_payload: dict,
         observed_at: datetime,
         parsed_items: list,
@@ -27,6 +34,9 @@ class RepositoryProtocol(Protocol):
         self,
         *,
         schema_name: str,
+        deal_id: int,
+        category_id: int,
+        region_id: int,
         window_start: date,
         window_end: date,
         status: str,
@@ -38,6 +48,9 @@ class RepositoryProtocol(Protocol):
         self,
         *,
         schema_name: str,
+        deal_id: int,
+        category_id: int,
+        region_id: int,
         window_start: date,
         window_end: date,
     ) -> dict | None: ...
@@ -66,8 +79,8 @@ class HistoricalBackfillService:
         if self.daily_quota < 1:
             raise ValueError("daily_quota must be >= 1")
 
-        now = ingestion_ts or datetime.now(tz=UTC)
-        max_date = end_date or now.date()
+        run_anchor = ingestion_ts or datetime.now(tz=UTC)
+        max_date = end_date or run_anchor.date()
         min_date = start_date or max_date
         if min_date > max_date:
             raise ValueError("start_date must be <= end_date")
@@ -82,6 +95,9 @@ class HistoricalBackfillService:
             )
             checkpoint = self.repository.get_checkpoint(
                 schema_name=schema_name,
+                deal_id=deal_id,
+                category_id=self.category_id,
+                region_id=self.region_id,
                 window_start=window_start,
                 window_end=current_end,
             )
@@ -96,6 +112,9 @@ class HistoricalBackfillService:
                 if daily_loaded >= self.daily_quota:
                     self.repository.upsert_checkpoint(
                         schema_name=schema_name,
+                        deal_id=deal_id,
+                        category_id=self.category_id,
+                        region_id=self.region_id,
                         window_start=window_start,
                         window_end=current_end,
                         status="quota_reached",
@@ -129,7 +148,10 @@ class HistoricalBackfillService:
                     limit=limit,
                     offset=offset,
                 )
-                parsed_items = parse_response_items(response_payload, observed_at=now)
+                observed_at = datetime.now(tz=UTC)
+                parsed_items = parse_response_items(
+                    response_payload, observed_at=observed_at
+                )
                 records_count = len(parsed_items)
 
                 self.repository.ingest_response(
@@ -144,8 +166,15 @@ class HistoricalBackfillService:
                         "limit": limit,
                         "offset": offset,
                     },
+                    deal_id=deal_id,
+                    category_id=self.category_id,
+                    region_id=self.region_id,
+                    window_start=window_start,
+                    window_end=current_end,
+                    page_limit=limit,
+                    page_offset=offset,
                     response_payload=response_payload,
-                    observed_at=now,
+                    observed_at=observed_at,
                     parsed_items=parsed_items,
                 )
                 daily_loaded += records_count
@@ -155,6 +184,9 @@ class HistoricalBackfillService:
                 next_offset = offset + limit
                 self.repository.upsert_checkpoint(
                     schema_name=schema_name,
+                    deal_id=deal_id,
+                    category_id=self.category_id,
+                    region_id=self.region_id,
                     window_start=window_start,
                     window_end=current_end,
                     status="running",
@@ -177,6 +209,9 @@ class HistoricalBackfillService:
                 if records_count < limit:
                     self.repository.upsert_checkpoint(
                         schema_name=schema_name,
+                        deal_id=deal_id,
+                        category_id=self.category_id,
+                        region_id=self.region_id,
                         window_start=window_start,
                         window_end=current_end,
                         status="completed",

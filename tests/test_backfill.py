@@ -33,7 +33,9 @@ class FakeClient:
 @dataclass
 class FakeRepo:
     ingested: int = 0
-    checkpoints: dict[tuple[str, date, date], dict] = field(default_factory=dict)
+    checkpoints: dict[tuple[str, int, int, int, date, date], dict] = field(
+        default_factory=dict
+    )
 
     def ingest_response(self, **kwargs):
         count = len(kwargs["parsed_items"])
@@ -41,11 +43,25 @@ class FakeRepo:
         return count
 
     def upsert_checkpoint(self, **kwargs):
-        key = (kwargs["schema_name"], kwargs["window_start"], kwargs["window_end"])
+        key = (
+            kwargs["schema_name"],
+            kwargs["deal_id"],
+            kwargs["category_id"],
+            kwargs["region_id"],
+            kwargs["window_start"],
+            kwargs["window_end"],
+        )
         self.checkpoints[key] = kwargs
 
     def get_checkpoint(self, **kwargs):
-        key = (kwargs["schema_name"], kwargs["window_start"], kwargs["window_end"])
+        key = (
+            kwargs["schema_name"],
+            kwargs["deal_id"],
+            kwargs["category_id"],
+            kwargs["region_id"],
+            kwargs["window_start"],
+            kwargs["window_end"],
+        )
         return self.checkpoints.get(key)
 
 
@@ -67,4 +83,7 @@ def test_daily_quota_stop_behavior() -> None:
     assert loaded == 1500
     assert repo.ingested == 1500
     latest_checkpoint = next(iter(repo.checkpoints.values()))
+    assert latest_checkpoint["deal_id"] == 1
+    assert latest_checkpoint["category_id"] == 1
+    assert latest_checkpoint["region_id"] == 1
     assert latest_checkpoint["records_loaded"] >= 1500
