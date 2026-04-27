@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class RepositoryProtocol(Protocol):
-    def ingest_response(
+    def create_raw_response_page(
         self,
         *,
         schema_name: str,
@@ -26,8 +26,15 @@ class RepositoryProtocol(Protocol):
         page_limit: int,
         page_offset: int,
         response_payload: dict,
-        observed_at: datetime,
+    ) -> tuple[int, bool]: ...
+
+    def ingest_parsed_items(
+        self,
+        *,
+        schema_name: str,
+        raw_response_id: int,
         parsed_items: list,
+        observed_at: datetime,
     ) -> int: ...
 
     def upsert_checkpoint(
@@ -148,35 +155,45 @@ class HistoricalBackfillService:
                     limit=limit,
                     offset=offset,
                 )
-                observed_at = datetime.now(tz=UTC)
-                parsed_items = parse_response_items(
-                    response_payload, observed_at=observed_at
+                request_params = {
+                    "category_id": self.category_id,
+                    "deal_id": deal_id,
+                    "region_id": self.region_id,
+                    "date1": date1,
+                    "date2": date2,
+                    "limit": limit,
+                    "offset": offset,
+                }
+                raw_response_id, was_inserted = (
+                    self.repository.create_raw_response_page(
+                        schema_name=schema_name,
+                        endpoint=self.client.endpoint,
+                        request_params=request_params,
+                        deal_id=deal_id,
+                        category_id=self.category_id,
+                        region_id=self.region_id,
+                        window_start=window_start,
+                        window_end=current_end,
+                        page_limit=limit,
+                        page_offset=offset,
+                        response_payload=response_payload,
+                    )
                 )
-                records_count = len(parsed_items)
 
-                self.repository.ingest_response(
-                    schema_name=schema_name,
-                    endpoint=self.client.endpoint,
-                    request_params={
-                        "category_id": self.category_id,
-                        "deal_id": deal_id,
-                        "region_id": self.region_id,
-                        "date1": date1,
-                        "date2": date2,
-                        "limit": limit,
-                        "offset": offset,
-                    },
-                    deal_id=deal_id,
-                    category_id=self.category_id,
-                    region_id=self.region_id,
-                    window_start=window_start,
-                    window_end=current_end,
-                    page_limit=limit,
-                    page_offset=offset,
-                    response_payload=response_payload,
-                    observed_at=observed_at,
-                    parsed_items=parsed_items,
-                )
+                observed_at = datetime.now(tz=UTC)
+                if was_inserted:
+                    parsed_items = parse_response_items(
+                        response_payload, observed_at=observed_at
+                    )
+                    records_count = self.repository.ingest_parsed_items(
+                        schema_name=schema_name,
+                        raw_response_id=raw_response_id,
+                        parsed_items=parsed_items,
+                        observed_at=observed_at,
+                    )
+                else:
+                    records_count = 0
+
                 daily_loaded += records_count
                 total_loaded += records_count
                 window_loaded += records_count

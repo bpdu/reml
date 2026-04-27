@@ -2,14 +2,21 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from decimal import Decimal
+import importlib.util
 from pathlib import Path
 import os
 
-import psycopg
 import pytest
 
-from reml.ingestion.parser import ParsedListing
-from reml.ingestion.repository import IngestionRepository
+HAS_PSYCOPG = importlib.util.find_spec("psycopg") is not None
+pytestmark = pytest.mark.skipif(not HAS_PSYCOPG, reason="psycopg is not installed")
+
+if HAS_PSYCOPG:
+    import psycopg
+    from reml.ingestion.parser import ParsedListing
+    from reml.ingestion.repository import IngestionRepository
+else:
+    psycopg = None  # type: ignore[assignment]
 
 
 def _require_test_dsn() -> str:

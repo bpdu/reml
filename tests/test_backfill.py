@@ -36,8 +36,13 @@ class FakeRepo:
     checkpoints: dict[tuple[str, int, int, int, date, date], dict] = field(
         default_factory=dict
     )
+    raw_pages: int = 0
 
-    def ingest_response(self, **kwargs):
+    def create_raw_response_page(self, **kwargs):
+        self.raw_pages += 1
+        return self.raw_pages, True
+
+    def ingest_parsed_items(self, **kwargs):
         count = len(kwargs["parsed_items"])
         self.ingested += count
         return count

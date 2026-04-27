@@ -93,6 +93,43 @@ class IngestionRepository:
         observed_at: datetime,
         parsed_items: list[ParsedListing],
     ) -> int:
+        raw_response_id, was_inserted = self.create_raw_response_page(
+            schema_name=schema_name,
+            endpoint=endpoint,
+            request_params=request_params,
+            deal_id=deal_id,
+            category_id=category_id,
+            region_id=region_id,
+            window_start=window_start,
+            window_end=window_end,
+            page_limit=page_limit,
+            page_offset=page_offset,
+            response_payload=response_payload,
+        )
+        if not was_inserted:
+            return 0
+        return self.ingest_parsed_items(
+            schema_name=schema_name,
+            raw_response_id=raw_response_id,
+            parsed_items=parsed_items,
+            observed_at=observed_at,
+        )
+
+    def create_raw_response_page(
+        self,
+        *,
+        schema_name: str,
+        endpoint: str,
+        request_params: dict[str, Any],
+        deal_id: int,
+        category_id: int,
+        region_id: int,
+        window_start: date,
+        window_end: date,
+        page_limit: int,
+        page_offset: int,
+        response_payload: dict[str, Any],
+    ) -> tuple[int, bool]:
         _validate_schema(schema_name)
         request_fingerprint = self.build_request_fingerprint(
             endpoint=endpoint,
@@ -100,7 +137,7 @@ class IngestionRepository:
         )
         with psycopg.connect(self.dsn) as conn:
             with conn.transaction():
-                raw_response_id, was_inserted = self._insert_raw_response(
+                return self._insert_raw_response(
                     conn=conn,
                     schema_name=schema_name,
                     endpoint=endpoint,
@@ -115,9 +152,22 @@ class IngestionRepository:
                     request_fingerprint=request_fingerprint,
                     response_payload=response_payload,
                 )
-                if not was_inserted:
-                    return 0
+
+    def ingest_parsed_items(
+        self,
+        *,
+        schema_name: str,
+        raw_response_id: int,
+        parsed_items: list[ParsedListing],
+        observed_at: datetime,
+    ) -> int:
+        _validate_schema(schema_name)
+        with psycopg.connect(self.dsn) as conn:
+            with conn.transaction():
                 for item in parsed_items:
+                    item.object_record["first_seen_at"] = observed_at
+                    item.object_record["last_seen_at"] = observed_at
+                    item.price_record["observed_at"] = observed_at
                     listing_id = self._upsert_listing_object(
                         conn=conn,
                         schema_name=schema_name,
