@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.ingestion_backfill_checkpoints (
     window_end date NOT NULL,
     status text NOT NULL,
     records_loaded integer NOT NULL DEFAULT 0,
-    offset integer NOT NULL DEFAULT 0,
+    page_offset integer NOT NULL DEFAULT 0,
     updated_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (schema_name, window_start, window_end)
 );

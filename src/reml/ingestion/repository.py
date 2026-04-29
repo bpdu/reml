@@ -198,14 +198,14 @@ class IngestionRepository:
         _validate_schema(schema_name)
         checkpoint_sql = """
             INSERT INTO public.ingestion_backfill_checkpoints
-                (schema_name, deal_id, category_id, region_id, window_start, window_end, status, records_loaded, offset)
+                (schema_name, deal_id, category_id, region_id, window_start, window_end, status, records_loaded, page_offset)
             VALUES
                 (%(schema_name)s, %(deal_id)s, %(category_id)s, %(region_id)s, %(window_start)s, %(window_end)s, %(status)s, %(records_loaded)s, %(offset)s)
             ON CONFLICT (schema_name, deal_id, category_id, region_id, window_start, window_end)
             DO UPDATE SET
                 status = EXCLUDED.status,
                 records_loaded = EXCLUDED.records_loaded,
-                offset = EXCLUDED.offset,
+                page_offset = EXCLUDED.page_offset,
                 updated_at = now()
         """
         with psycopg.connect(self.dsn) as conn:
@@ -239,7 +239,7 @@ class IngestionRepository:
         with psycopg.connect(self.dsn) as conn:
             row = conn.execute(
                 """
-                SELECT schema_name, deal_id, category_id, region_id, window_start, window_end, status, records_loaded, offset, updated_at
+                SELECT schema_name, deal_id, category_id, region_id, window_start, window_end, status, records_loaded, page_offset, updated_at
                 FROM public.ingestion_backfill_checkpoints
                 WHERE schema_name = %(schema_name)s
                   AND deal_id = %(deal_id)s
