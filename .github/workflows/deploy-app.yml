@@ -82,3 +82,43 @@ jobs:
           python scripts/init_db.py
           sudo systemctl restart prefect || true
           sudo systemctl restart mlflow || true
+
+      - name: Post-deploy smoke checks
+        env:
+          REML_APP_DIR: ${{ secrets.REML_APP_DIR }}
+          REML_DB_DSN: ${{ secrets.REML_DB_DSN }}
+        run: |
+          set -euo pipefail
+          cd "$REML_APP_DIR"
+          . .venv/bin/activate
+          python - <<'PY'
+          import os
+          import psycopg
+          import reml  # noqa: F401
+
+          dsn = os.environ["REML_DB_DSN"]
+          required_tables = [
+              "sale.listing_api_responses",
+              "sale.listing_objects",
+              "sale.listing_price_observations",
+              "rent.listing_api_responses",
+              "rent.listing_objects",
+              "rent.listing_price_observations",
+              "public.ingestion_backfill_checkpoints",
+          ]
+
+          with psycopg.connect(dsn) as conn:
+              with conn.cursor() as cur:
+                  cur.execute("SELECT 1")
+                  assert cur.fetchone() == (1,)
+                  for table_name in required_tables:
+                      cur.execute(
+                          "SELECT to_regclass(%s)",
+                          (table_name,),
+                      )
+                      result = cur.fetchone()
+                      if result is None or result[0] is None:
+                          raise RuntimeError(f"Missing required table: {table_name}")
+
+          print("Smoke checks passed: import, DB connection, required tables")
+          PY
