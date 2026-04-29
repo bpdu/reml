@@ -44,38 +44,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup SSH
+      - name: Sync repository locally via rsync
         env:
-          REML_CONTROLLER_HOST: ${{ secrets.REML_CONTROLLER_HOST }}
-          REML_CONTROLLER_SSH_KEY: ${{ secrets.REML_CONTROLLER_SSH_KEY }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$REML_CONTROLLER_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$REML_CONTROLLER_HOST" >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      - name: Sync repository via rsync
-        env:
-          REML_CONTROLLER_HOST: ${{ secrets.REML_CONTROLLER_HOST }}
-          REML_CONTROLLER_USER: ${{ secrets.REML_CONTROLLER_USER }}
           REML_APP_DIR: ${{ secrets.REML_APP_DIR }}
         run: |
           set -euo pipefail
-          ssh "$REML_CONTROLLER_USER@$REML_CONTROLLER_HOST" "mkdir -p '$REML_APP_DIR'"
+          mkdir -p "$REML_APP_DIR"
           rsync -az --delete \
             --exclude ".git/" \
             --exclude "__pycache__/" \
             --exclude ".venv/" \
             --exclude ".pytest_cache/" \
-            ./ "$REML_CONTROLLER_USER@$REML_CONTROLLER_HOST:$REML_APP_DIR/"
+            ./ "$REML_APP_DIR/"
 
       - name: Install app dependencies, run DB init, restart services
         env:
-          REML_CONTROLLER_HOST: ${{ secrets.REML_CONTROLLER_HOST }}
-          REML_CONTROLLER_USER: ${{ secrets.REML_CONTROLLER_USER }}
           REML_APP_DIR: ${{ secrets.REML_APP_DIR }}
           REML_DB_DSN: ${{ secrets.REML_DB_DSN }}
           SOURCE_API_LOGIN: ${{ secrets.SOURCE_API_LOGIN }}
@@ -85,18 +68,17 @@ jobs:
           SOURCE_API_MAX_RETRIES: ${{ secrets.SOURCE_API_MAX_RETRIES }}
         run: |
           set -euo pipefail
-          ssh "$REML_CONTROLLER_USER@$REML_CONTROLLER_HOST" "set -euo pipefail; \
-            export REML_DB_DSN='$REML_DB_DSN'; \
-            export SOURCE_API_LOGIN='$SOURCE_API_LOGIN'; \
-            export SOURCE_API_TOKEN='$SOURCE_API_TOKEN'; \
-            export SOURCE_API_ENDPOINT='${SOURCE_API_ENDPOINT:-}'; \
-            export SOURCE_API_TIMEOUT_SECONDS='${SOURCE_API_TIMEOUT_SECONDS:-}'; \
-            export SOURCE_API_MAX_RETRIES='${SOURCE_API_MAX_RETRIES:-}'; \
-            cd '$REML_APP_DIR'; \
-            python3 -m venv .venv; \
-            . .venv/bin/activate; \
-            pip install -U pip; \
-            pip install -r requirements.txt; \
-            python scripts/init_db.py; \
-            sudo systemctl restart prefect || true; \
-            sudo systemctl restart mlflow || true"
+          export REML_DB_DSN="$REML_DB_DSN"
+          export SOURCE_API_LOGIN="$SOURCE_API_LOGIN"
+          export SOURCE_API_TOKEN="$SOURCE_API_TOKEN"
+          export SOURCE_API_ENDPOINT="${SOURCE_API_ENDPOINT:-}"
+          export SOURCE_API_TIMEOUT_SECONDS="${SOURCE_API_TIMEOUT_SECONDS:-}"
+          export SOURCE_API_MAX_RETRIES="${SOURCE_API_MAX_RETRIES:-}"
+          cd "$REML_APP_DIR"
+          python3 -m venv .venv
+          . .venv/bin/activate
+          pip install -U pip
+          pip install -r requirements.txt
+          python scripts/init_db.py
+          sudo systemctl restart prefect || true
+          sudo systemctl restart mlflow || true
