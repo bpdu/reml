@@ -21,14 +21,14 @@ resource "yandex_compute_instance" "reml_controller" {
 
   resources {
     cores  = 2
-    memory = 8
+    memory = 4
   }
 
   boot_disk {
     initialize_params {
       image_id = data.yandex_compute_image.ubuntu.image_id
       size     = 50
-      type     = "network-ssd"
+      type     = "network-hdd"
     }
   }
 
@@ -59,6 +59,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -74,12 +75,15 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
   # Provisioner 3: Prefect systemd service
   provisioner "file" {
-    source      = "${path.module}/templates/prefect.service.tpl"
+    content = templatefile("${path.module}/templates/prefect.service.tpl", {
+      ssh_username = var.ssh_username
+    })
     destination = "/tmp/prefect.service"
 
     connection {
@@ -87,12 +91,15 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
   # Provisioner 4: MLflow systemd service
   provisioner "file" {
-    source      = "${path.module}/templates/mlflow.service.tpl"
+    content = templatefile("${path.module}/templates/mlflow.service.tpl", {
+      ssh_username = var.ssh_username
+    })
     destination = "/tmp/mlflow.service"
 
     connection {
@@ -100,6 +107,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -117,6 +125,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -135,6 +144,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -148,6 +158,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -172,6 +183,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -192,6 +204,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -210,6 +223,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -234,6 +248,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -252,6 +267,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 
@@ -274,6 +290,16 @@ resource "yandex_compute_instance" "reml_controller" {
       "python3 -m venv /home/${var.ssh_username}/reml-env",
       "/home/${var.ssh_username}/reml-env/bin/pip install --upgrade pip",
       "/home/${var.ssh_username}/reml-env/bin/pip install prefect mlflow boto3",
+
+      # Install GitHub Actions runner binaries (manual registration later)
+      "mkdir -p /home/${var.ssh_username}/actions-runner",
+      "cd /home/${var.ssh_username}/actions-runner && curl -L -o actions-runner-linux-x64-${var.github_runner_version}.tar.gz https://github.com/actions/runner/releases/download/v${var.github_runner_version}/actions-runner-linux-x64-${var.github_runner_version}.tar.gz",
+      "cd /home/${var.ssh_username}/actions-runner && tar xzf actions-runner-linux-x64-${var.github_runner_version}.tar.gz",
+      "cd /home/${var.ssh_username}/actions-runner && sudo ./bin/installdependencies.sh",
+      "rm -f /home/${var.ssh_username}/actions-runner/actions-runner-linux-x64-${var.github_runner_version}.tar.gz",
+      "sudo chown -R ${var.ssh_username}:${var.ssh_username} /home/${var.ssh_username}/actions-runner",
+      "cat > /home/${var.ssh_username}/register-github-runner.sh <<'EOF'\n#!/usr/bin/env bash\nset -euo pipefail\nif [[ -z \"$${RUNNER_TOKEN:-}\" ]]; then\n  echo \"Set RUNNER_TOKEN from GitHub: Settings -> Actions -> Runners -> New self-hosted runner\"\n  exit 1\nfi\nRUNNER_NAME=\"$${RUNNER_NAME:-reml-controller}\"\nRUNNER_LABELS=\"$${RUNNER_LABELS:-self-hosted,reml-controller}\"\ncd /home/${var.ssh_username}/actions-runner\n./config.sh --url ${var.github_runner_repo_url} --token \"$RUNNER_TOKEN\" --name \"$RUNNER_NAME\" --labels \"$RUNNER_LABELS\" --unattended --replace\nsudo ./svc.sh install ${var.ssh_username}\nsudo ./svc.sh start\necho \"Runner registered and started.\"\nEOF",
+      "chmod +x /home/${var.ssh_username}/register-github-runner.sh",
 
       # Install systemd services
       "sudo cp /tmp/prefect.service /etc/systemd/system/prefect.service",
@@ -305,6 +331,7 @@ resource "yandex_compute_instance" "reml_controller" {
       user        = var.ssh_username
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].nat_ip_address
+      agent       = false
     }
   }
 }

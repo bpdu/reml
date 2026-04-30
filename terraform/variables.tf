@@ -29,7 +29,7 @@ variable "ssh_private_key_path" {
 variable "ssh_username" {
   description = "SSH username for the instance"
   type        = string
-  default     = "ubuntu"
+  default     = "reml-user"
 }
 
 variable "environment" {
@@ -113,4 +113,16 @@ variable "loki_basic_auth_password" {
   description = "Password for Promtail to authenticate to Loki ingress"
   type        = string
   sensitive   = true
+}
+
+variable "github_runner_repo_url" {
+  description = "GitHub repository URL for self-hosted runner registration"
+  type        = string
+  default     = "https://github.com/bpdu/reml"
+}
+
+variable "github_runner_version" {
+  description = "GitHub Actions runner version to install"
+  type        = string
+  default     = "2.317.0"
 }

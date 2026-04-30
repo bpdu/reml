@@ -4,6 +4,9 @@ service_account_key_file = "/home/your-user/.yandex-cloud/reml-sa-key.json"
 
 ssh_public_key_path      = "/home/your-user/.ssh/reml.pub"
 ssh_private_key_path     = "/home/your-user/.ssh/reml"
+ssh_username             = "reml-user"
+github_runner_repo_url   = "https://github.com/bpdu/reml"
+github_runner_version    = "2.317.0"
 
 # Environment-specific secrets should be provided via GitHub Environment Secrets
 # and exported as TF_VAR_* values in CI:

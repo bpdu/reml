@@ -19,6 +19,15 @@ MLOps pipeline for real estate investment ROI prediction
 - Inference: FastAPI + vLLM (GPU)
 - Monitoring: Prometheus + Grafana
 
+## Infrastructure note
+
+Terraform systemd templates for Prefect and MLflow use `ssh_username` and render service paths dynamically:
+- `User=${ssh_username}`
+- `WorkingDirectory=/home/${ssh_username}`
+- `ExecStart=/home/${ssh_username}/reml-env/bin/...`
+
+This prevents hardcoded `ubuntu` paths and keeps service units consistent with the provisioned SSH user.
+
 ## Ingestion (historical backfill)
 
 ### 1. Initialize DB objects (schemas, tables, indexes, checkpoints)
